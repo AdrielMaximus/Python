@@ -12,7 +12,6 @@ class APIClient:
             resposta = requests.get(self.url, headers=self.headers)
             resposta.raise_for_status()
             dados = resposta.json()
-            print(f"Dados recebidos da API: {dados}")  # Adicionado para verificação
             return pd.DataFrame(dados['data'])
         except requests.exceptions.RequestException as e:
             print(f"Erro ao acessar a API: {e}")
@@ -33,16 +32,8 @@ class DashboardGenerator:
                 workbook = writer.book
                 worksheet = writer.sheets[nome]
 
-                # Verifica se há dados válidos para criar um gráfico
-                if df.empty:
-                    print(f"Dados insuficientes para criar gráfico em {nome}")
-                    continue
-
-                print(f"Gerando gráfico para {nome} com dados: {df.head()}")  # Adicionado para diagnóstico
-
                 chart = workbook.add_chart({'type': 'line'})
 
-                # Gráfico de intensidade de carbono
                 if nome == 'Carbon Intensity' and 'date' in df.columns and 'emissions_intensity_gco2_per_kwh' in df.columns:
                     chart.add_series({
                         'name': 'Carbon Intensity (gCO2/kWh)',
@@ -53,56 +44,45 @@ class DashboardGenerator:
                     chart.set_x_axis({'name': 'Ano'})
                     chart.set_y_axis({'name': 'gCO2/kWh'})
 
-                # Gráfico de geração de eletricidade
                 elif nome == 'Electricity Generation' and 'date' in df.columns and 'series' in df.columns:
-                    series_adicionadas = False
-                    for serie in ['bioenergy', 'hydro', 'other fossil', 'coal', 'net import', 'solar', 'gas', 'nuclear', 'wind']:
+                    for serie in df['series'].unique():
                         df_serie = df[df['series'] == serie]
-                        if not df_serie.empty and 'generation_twh' in df_serie.columns:
-                            chart.add_series({
-                                'name': f'Geração {serie.capitalize()} (TWh)',
-                                'categories': [nome, 16, df.columns.get_loc('date'), 15 + len(df_serie), df.columns.get_loc('date')],
-                                'values': [nome, 16, df.columns.get_loc('generation_twh'), 15 + len(df_serie), df.columns.get_loc('generation_twh')],
-                            })
-                            series_adicionadas = True
-                    if not series_adicionadas:
-                        print(f"Dados insuficientes para criar gráfico em {nome}")
-                        continue
+                        chart.add_series({
+                            'name': f'Geração {serie} (TWh)',
+                            'categories': [nome, 16, df.columns.get_loc('date'), 15 + len(df_serie), df.columns.get_loc('date')],
+                            'values': [nome, 16, df.columns.get_loc('generation_twh'), 15 + len(df_serie), df.columns.get_loc('generation_twh')],
+                        })
                     chart.set_title({'name': 'Geração de Eletricidade por Origem'})
                     chart.set_x_axis({'name': 'Ano'})
                     chart.set_y_axis({'name': 'TWh'})
 
-                # Gráfico de emissões do setor energético
                 elif nome == 'Power Sector Emissions' and 'date' in df.columns and 'series' in df.columns:
-                    series_adicionadas = False
-                    for serie in ['gas', 'coal']:
+                    for serie in df['series'].unique():
                         df_serie = df[df['series'] == serie]
-                        if not df_serie.empty and 'emissions_mtco2' in df_serie.columns:
-                            chart.add_series({
-                                'name': f'Emissões {serie.capitalize()} (MtCO2)',
-                                'categories': [nome, 16, df.columns.get_loc('date'), 15 + len(df_serie), df.columns.get_loc('date')],
-                                'values': [nome, 16, df.columns.get_loc('emissions_mtco2'), 15 + len(df_serie), df.columns.get_loc('emissions_mtco2')],
-                            })
-                            series_adicionadas = True
-                    if not series_adicionadas:
-                        print(f"Dados insuficientes para criar gráfico em {nome}")
-                        continue
+                        chart.add_series({
+                            'name': f'Emissões {serie} (MtCO2)',
+                            'categories': [nome, 16, df.columns.get_loc('date'), 15 + len(df_serie), df.columns.get_loc('date')],
+                            'values': [nome, 16, df.columns.get_loc('emissions_mtco2'), 15 + len(df_serie), df.columns.get_loc('emissions_mtco2')],
+                        })
                     chart.set_title({'name': 'Emissões do Setor Energético'})
                     chart.set_x_axis({'name': 'Ano'})
                     chart.set_y_axis({'name': 'MtCO2'})
 
-                # Gráfico de demanda de eletricidade
-                elif nome == 'Electricity Demand' and 'date' in df.columns and 'demand_twh' in df.columns:
+                elif nome == 'Electricity Demand' and 'date' in df.columns:
                     chart.add_series({
                         'name': 'Demanda (TWh)',
                         'categories': [nome, 16, df.columns.get_loc('date'), 15 + len(df), df.columns.get_loc('date')],
                         'values': [nome, 16, df.columns.get_loc('demand_twh'), 15 + len(df), df.columns.get_loc('demand_twh')],
                     })
+                    chart.add_series({
+                        'name': 'Demanda per capita (MWh)',
+                        'categories': [nome, 16, df.columns.get_loc('date'), 15 + len(df), df.columns.get_loc('date')],
+                        'values': [nome, 16, df.columns.get_loc('demand_mwh_per_capita'), 15 + len(df), df.columns.get_loc('demand_mwh_per_capita')],
+                    })
                     chart.set_title({'name': 'Demanda de Eletricidade'})
                     chart.set_x_axis({'name': 'Ano'})
-                    chart.set_y_axis({'name': 'TWh'})
+                    chart.set_y_axis({'name': 'TWh e MWh per capita'})
 
-                # Configuração final do gráfico
                 chart.set_legend({'position': 'bottom'})
                 worksheet.insert_chart('A1', chart, {'x_scale': 2, 'y_scale': 1.5})
 
