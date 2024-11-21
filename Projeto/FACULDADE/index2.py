@@ -1,116 +1,160 @@
+import dash
+from dash import dcc, html
+import plotly.graph_objs as go
 import requests
 import pandas as pd
-import xlsxwriter
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
-class APIClient:
-    def __init__(self, url, headers=None):
-        self.url = url
-        self.headers = headers
+# Inicializar o aplicativo Dash
+app = dash.Dash(__name__)
 
-    def coletar_dados(self):
-        try:
-            resposta = requests.get(self.url, headers=self.headers)
-            resposta.raise_for_status()
-            dados = resposta.json()
-            return pd.DataFrame(dados['data'])
-        except requests.exceptions.RequestException as e:
-            print(f"Erro ao acessar a API: {e}")
-            return None
-        except ValueError as e:
-            print(f"Erro ao converter dados para JSON: {e}")
-            return None
+# Função para obter os dados da API
+def get_data_from_api():
+    url = "https://api.ember-energy.org/v1/electricity-generation/yearly"
+    params = {
+        "entity_code": "BRA",
+        "is_aggregate_series": "false",
+        "start_date": "1990",
+        "api_key": "9f41a468-2b7c-4c18-bbc9-54bce231b024"
+    }
+    response = requests.get(url, params=params)
+    data = response.json()
+    return data['data']
 
-class DashboardGenerator:
-    def __init__(self, dataframes, nome_arquivo='dashboard_enerlyze.xlsx'):
-        self.dataframes = dataframes
-        self.nome_arquivo = nome_arquivo
+# Função para calcular a projeção com base nos dados históricos
+def project_future(data, years_ahead):
+    # Preparar os dados para a regressão
+    df = pd.DataFrame(data)
+    df['date'] = pd.to_numeric(df['date'], errors='coerce')
+    df['generation_twh'] = pd.to_numeric(df['generation_twh'], errors='coerce')
 
-    def gerar_excel_com_graficos(self):
-        with pd.ExcelWriter(self.nome_arquivo, engine='xlsxwriter') as writer:
-            for nome, df in self.dataframes.items():
-                df.to_excel(writer, sheet_name=nome, index=False, startrow=15, startcol=0)
-                workbook = writer.book
-                worksheet = writer.sheets[nome]
+    # Ajustar a regressão linear
+    model = LinearRegression()
+    model.fit(df[['date']], df['generation_twh'])
 
-                chart = workbook.add_chart({'type': 'line'})
+    # Fazer a projeção para os próximos anos
+    last_year = df['date'].max()
+    future_years = np.array(range(last_year + 1, last_year + 1 + years_ahead)).reshape(-1, 1)
+    future_predictions = model.predict(future_years)
 
-                if nome == 'Carbon Intensity' and 'date' in df.columns and 'emissions_intensity_gco2_per_kwh' in df.columns:
-                    chart.add_series({
-                        'name': 'Carbon Intensity (gCO2/kWh)',
-                        'categories': [nome, 16, df.columns.get_loc('date'), 15 + len(df), df.columns.get_loc('date')],
-                        'values': [nome, 16, df.columns.get_loc('emissions_intensity_gco2_per_kwh'), 15 + len(df), df.columns.get_loc('emissions_intensity_gco2_per_kwh')],
-                    })
-                    chart.set_title({'name': 'Carbon Intensity ao longo dos anos'})
-                    chart.set_x_axis({'name': 'Ano'})
-                    chart.set_y_axis({'name': 'gCO2/kWh'})
+    # Criar um novo DataFrame com as projeções
+    projected_data = pd.DataFrame({
+        'date': future_years.flatten(),
+        'generation_twh': future_predictions
+    })
 
-                elif nome == 'Electricity Generation' and 'date' in df.columns and 'series' in df.columns:
-                    for serie in df['series'].unique():
-                        df_serie = df[df['series'] == serie]
-                        chart.add_series({
-                            'name': f'Geração {serie} (TWh)',
-                            'categories': [nome, 16, df.columns.get_loc('date'), 15 + len(df_serie), df.columns.get_loc('date')],
-                            'values': [nome, 16, df.columns.get_loc('generation_twh'), 15 + len(df_serie), df.columns.get_loc('generation_twh')],
-                        })
-                    chart.set_title({'name': 'Geração de Eletricidade por Origem'})
-                    chart.set_x_axis({'name': 'Ano'})
-                    chart.set_y_axis({'name': 'TWh'})
+    return projected_data
 
-                elif nome == 'Power Sector Emissions' and 'date' in df.columns and 'series' in df.columns:
-                    for serie in df['series'].unique():
-                        df_serie = df[df['series'] == serie]
-                        chart.add_series({
-                            'name': f'Emissões {serie} (MtCO2)',
-                            'categories': [nome, 16, df.columns.get_loc('date'), 15 + len(df_serie), df.columns.get_loc('date')],
-                            'values': [nome, 16, df.columns.get_loc('emissions_mtco2'), 15 + len(df_serie), df.columns.get_loc('emissions_mtco2')],
-                        })
-                    chart.set_title({'name': 'Emissões do Setor Energético'})
-                    chart.set_x_axis({'name': 'Ano'})
-                    chart.set_y_axis({'name': 'MtCO2'})
+# Obter dados históricos da API
+data = get_data_from_api()
 
-                elif nome == 'Electricity Demand' and 'date' in df.columns:
-                    chart.add_series({
-                        'name': 'Demanda (TWh)',
-                        'categories': [nome, 16, df.columns.get_loc('date'), 15 + len(df), df.columns.get_loc('date')],
-                        'values': [nome, 16, df.columns.get_loc('demand_twh'), 15 + len(df), df.columns.get_loc('demand_twh')],
-                    })
-                    chart.add_series({
-                        'name': 'Demanda per capita (MWh)',
-                        'categories': [nome, 16, df.columns.get_loc('date'), 15 + len(df), df.columns.get_loc('date')],
-                        'values': [nome, 16, df.columns.get_loc('demand_mwh_per_capita'), 15 + len(df), df.columns.get_loc('demand_mwh_per_capita')],
-                    })
-                    chart.set_title({'name': 'Demanda de Eletricidade'})
-                    chart.set_x_axis({'name': 'Ano'})
-                    chart.set_y_axis({'name': 'TWh e MWh per capita'})
+# Layout do aplicativo Dash
+app.layout = html.Div([
+    html.H1("Projeção de Geração de Eletricidade no Brasil"),
+    
+    # Gráfico de geração histórica e projeção
+    dcc.Graph(id="generation-graph"),
+    
+    # Seleção de anos à frente para projeção
+    dcc.Slider(
+        id="years-slider",
+        min=1,
+        max=10,
+        step=1,
+        value=5,
+        marks={i: str(i) for i in range(1, 11)},
+    ),
+    
+    html.Div(id="slider-output-container")
+])
 
-                chart.set_legend({'position': 'bottom'})
-                worksheet.insert_chart('A1', chart, {'x_scale': 2, 'y_scale': 1.5})
+# Callback para atualizar o gráfico com base na seleção do usuário
+@app.callback(
+    dash.dependencies.Output("generation-graph", "figure"),
+    dash.dependencies.Input("years-slider", "value")
+)
+def update_graph(years_ahead):
+    # Fazer a projeção com base nos dados históricos
+    projected_data = project_future(data, years_ahead)
 
-        print(f'Dashboard com gráficos gerado: {self.nome_arquivo}')
+    # Preparar os dados históricos e projetados para o gráfico
+    df = pd.DataFrame(data)
+    historical_data = df[['date', 'generation_twh']]
 
-class Application:
-    def __init__(self, urls_apis):
-        self.urls_apis = urls_apis
-        self.dataframes = {}
+    # Gráfico empilhado com diferentes fontes de geração
+    trace3 = go.Scatter(
+        x=historical_data['date'],
+        y=historical_data['generation_twh']*0.2,  # Exemplo de divisão das fontes
+        mode='none',
+        stackgroup='one',
+        name='Wind',
+        fillcolor='green'
+    )
+    
+    trace4 = go.Scatter(
+        x=historical_data['date'],
+        y=historical_data['generation_twh']*0.2,  # Exemplo de divisão das fontes
+        mode='none',
+        stackgroup='one',
+        name='Solar',
+        fillcolor='lightgreen'
+    )
+    
+    trace5 = go.Scatter(
+        x=historical_data['date'],
+        y=historical_data['generation_twh']*0.2,  # Exemplo de divisão das fontes
+        mode='none',
+        stackgroup='one',
+        name='Bioenergy',
+        fillcolor='orange'
+    )
+    
+    trace6 = go.Scatter(
+        x=historical_data['date'],
+        y=historical_data['generation_twh']*0.2,  # Exemplo de divisão das fontes
+        mode='none',
+        stackgroup='one',
+        name='Other Renewables',
+        fillcolor='lightblue'
+    )
 
-    def executar(self):
-        for nome_api, url_api in self.urls_apis.items():
-            cliente_api = APIClient(url_api)
-            dados_coletados = cliente_api.coletar_dados()
-            if dados_coletados is not None:
-                self.dataframes[nome_api] = dados_coletados
+    trace1 = go.Scatter(
+        x=historical_data['date'],
+        y=historical_data['generation_twh'],
+        mode='lines+markers',
+        name='Histórico',
+        line={'color': 'blue'}
+    )
 
-        if self.dataframes:
-            gerador_dashboard = DashboardGenerator(self.dataframes)
-            gerador_dashboard.gerar_excel_com_graficos()
+    trace2 = go.Scatter(
+        x=projected_data['date'],
+        y=projected_data['generation_twh'],
+        mode='lines+markers',
+        name='Projeção Futura',
+        line={'color': 'orange'}
+    )
 
-if __name__ == "__main__":
-    urls_apis = {
-        'Carbon Intensity': 'https://api.ember-energy.org/v1/carbon-intensity/yearly?entity_code=BRA&start_date=1990&api_key=9f41a468-2b7c-4c18-bbc9-54bce231b024',
-        'Electricity Generation': 'https://api.ember-energy.org/v1/electricity-generation/yearly?entity_code=BRA&is_aggregate_series=false&start_date=1990&api_key=9f41a468-2b7c-4c18-bbc9-54bce231b024',
-        'Power Sector Emissions': 'https://api.ember-energy.org/v1/power-sector-emissions/yearly?entity_code=BRA&series=Coal,Gas&start_date=2000&api_key=9f41a468-2b7c-4c18-bbc9-54bce231b024',
-        'Electricity Demand': 'https://api.ember-energy.org/v1/electricity-demand/yearly?entity=Brazil&entity_code=BRA&start_date=2000&include_all_dates_value_range=false&api_key=9f41a468-2b7c-4c18-bbc9-54bce231b024'
+    figure = {
+        'data': [trace1, trace2, trace3, trace4, trace5, trace6],
+        'layout': go.Layout(
+            title="Geração de Eletricidade no Brasil",
+            xaxis={'title': 'Ano'},
+            yaxis={'title': 'Geração (TWh)'},
+            showlegend=True
+        )
     }
 
-    app = Application(urls_apis)
-    app.executar()
+    return figure
+
+# Callback para atualizar o texto do slider
+@app.callback(
+    dash.dependencies.Output("slider-output-container", "children"),
+    dash.dependencies.Input("years-slider", "value")
+)
+def update_slider_output(value):
+    return f"Projeção para {value} anos à frente."
+
+# Rodar o servidor do Dash
+if __name__ == "__main__":
+    app.run_server(debug=True)
