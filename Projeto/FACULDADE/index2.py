@@ -1,12 +1,11 @@
 import dash
 from dash import dcc, html
+from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import requests
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 import numpy as np
-import io
-import flask
 
 # Inicializar o aplicativo Dash
 app = dash.Dash(__name__)
@@ -56,28 +55,68 @@ def project_data(edata, years_ahead):
 
 # Layout do aplicativo Dash
 app.layout = html.Div([
-    html.H1("Projeção de Geração de Eletricidade e Lixo no Brasil"),
-    dcc.Graph(id="generation-by-type-graph"),
-    dcc.Graph(id="waste-generation-graph"),
-    dcc.Slider(
-        id="years-slider",
-        min=1,
-        max=10,
-        step=1,
-        value=5,
-        marks={i: str(i) for i in range(1, 11)},
+    html.Div(
+        id="initial-screen",
+        children=[
+            html.H1("Bem vindo ao enerlyze, clique em iniciar para começar"),
+            html.Button("Iniciar", id="start-button", n_clicks=0)
+        ],
+        style={'display': 'block'}  # Inicialmente exibe a tela de boas-vindas
     ),
-    html.Div(id="slider-output-container"),
-    html.Div([
-        html.A("Baixar Dados dos Gráficos", id="download-link", download="dados_graficos.csv", href="", target="_blank", className="download-button")
-    ])
+    
+    html.Div(
+        id="content-screen",
+        children=[
+            html.H1("Projeção de Geração de Eletricidade e Lixo no Brasil"),
+            dcc.Graph(id="generation-by-type-graph"),
+            dcc.Graph(id="waste-generation-graph"),
+            dcc.Slider(
+                id="years-slider",
+                min=1,
+                max=10,
+                step=1,
+                value=5,
+                marks={i: str(i) for i in range(1, 11)},
+            ),
+            html.Div(id="slider-output-container"),
+            html.Div([
+                html.A("Baixar Dados dos Gráficos", id="download-link", download="dados_graficos.csv", href="", target="_blank", className="download-button")
+            ]),
+            html.Button("Voltar", id="back-button", n_clicks=0)
+        ],
+        style={'display': 'none'}  # Inicialmente oculta a tela de conteúdo
+    )
 ])
 
-# Callback para atualizar o gráfico de geração de eletricidade por tipo
+# Callback para alternar entre a tela inicial e a tela de conteúdo
 @app.callback(
-    dash.dependencies.Output("generation-by-type-graph", "figure"),
-    dash.dependencies.Input("years-slider", "value")
+    [Output("initial-screen", "style"),
+     Output("content-screen", "style"),
+     Output("generation-by-type-graph", "figure"),
+     Output("waste-generation-graph", "figure")],
+    [Input("start-button", "n_clicks"),
+     Input("back-button", "n_clicks"),
+     Input("years-slider", "value")],
+    [State("initial-screen", "style"),
+     State("content-screen", "style")]
 )
+def toggle_screens(start_clicks, back_clicks, years_ahead, initial_style, content_style):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return initial_style, content_style, {}, {}
+
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if button_id == "start-button":
+        # Quando o botão Iniciar for pressionado, exibe a tela de conteúdo e oculta a tela inicial
+        return {'display': 'none'}, {'display': 'block'}, update_generation_by_type_graph(years_ahead), update_waste_graph(years_ahead)
+    elif button_id == "back-button":
+        # Quando o botão Voltar for pressionado, exibe a tela inicial e oculta a tela de conteúdo
+        return {'display': 'block'}, {'display': 'none'}, {}, {}
+    
+    return initial_style, content_style, {}, {}
+
+# Função para atualizar o gráfico de geração de eletricidade por tipo
 def update_generation_by_type_graph(years_ahead):
     traces = []
     for etype, edata in energy_data.items():
@@ -106,11 +145,7 @@ def update_generation_by_type_graph(years_ahead):
         )
     }
 
-# Callback para atualizar o gráfico de geração de lixo
-@app.callback(
-    dash.dependencies.Output("waste-generation-graph", "figure"),
-    dash.dependencies.Input("years-slider", "value")
-)
+# Função para atualizar o gráfico de geração de lixo
 def update_waste_graph(years_ahead):
     df['solar_waste'] = df['generation_twh'] * 1000 * 20
     df['wind_waste'] = df['generation_twh'] * 1000 * 15
@@ -131,32 +166,6 @@ def update_waste_graph(years_ahead):
             showlegend=True
         )
     }
-
-# Callback para atualizar o texto do slider
-@app.callback(
-    dash.dependencies.Output("slider-output-container", "children"),
-    dash.dependencies.Input("years-slider", "value")
-)
-def update_slider_output(value):
-    return f"Projeção para {value} anos à frente."
-
-# Callback para gerar o link de download
-@app.callback(
-    dash.dependencies.Output("download-link", "href"),
-    dash.dependencies.Input("years-slider", "value")
-)
-def update_download_link(years_ahead):
-    all_data = []
-    for etype, edata in energy_data.items():
-        edata['type'] = etype
-        edata['projection'] = 'Histórico'
-        future_df = project_data(edata, years_ahead)
-        future_df['type'] = etype
-        future_df['projection'] = 'Projeção'
-        all_data.append(pd.concat([edata, future_df]))
-    combined_data = pd.concat(all_data)
-    csv_string = combined_data.to_csv(index=False, encoding='utf-8')
-    return f"data:text/csv;charset=utf-8,{csv_string}"
 
 # Rodar o servidor do Dash
 if __name__ == "__main__":
