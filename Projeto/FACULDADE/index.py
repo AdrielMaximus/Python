@@ -14,6 +14,7 @@ app = dash.Dash(
     external_scripts=[{"src": "https://cdn.tailwindcss.com"}],
 )
 app.scripts.config.serve_locally = True
+app.title = "Enerlyze"
 
 # Função para obter os dados da API
 def get_data_from_api():
