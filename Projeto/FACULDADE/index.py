@@ -9,10 +9,9 @@ import numpy as np
 import os
 from flask import send_file  # Importando a função send_file do Flask
 
-external_script = [{"src": "https://cdn.tailwindcss.com"}]
 app = dash.Dash(
     __name__,
-    external_scripts=external_script,
+    external_scripts=[{"src": "https://cdn.tailwindcss.com"}],
 )
 app.scripts.config.serve_locally = True
 
@@ -83,7 +82,9 @@ def generate_projection_csv():
     return csv_path
 
 # Layout do aplicativo Dash
-app.layout = html.Div([
+app.layout = html.Div(
+    className="bg-indigo-950",
+    children=[
     html.Div(
         id="initial-screen",
         children=[
@@ -95,45 +96,64 @@ app.layout = html.Div([
     
     html.Div(
         id="content-screen",
+        className="p-4 md:p-8 lg:p-16 xl:p-20",
         children=[
-            html.H1(
-                children="Projeção de Geração de Eletricidade e Lixo no Brasil",
-                className="text-xl font-bold mb-4 text-center",
-                ),
-``
             html.Div(
+                className="flex mx-auto justify-between",
                 children=[
-                    html.A(
-                        "Baixar Projeções", 
-                        id="download-link", 
-                        download="projecao_energia.csv", 
-                        href="/static/projecao_energia.csv", 
-                        target="_blank", 
-                        className="download-button bg-teal-400 text-black px-6 py-2 rounded-lg shadow-md hover:bg-teal-500 transition-all"),
-                    html.Button(
-                        "Voltar", 
-                        id="back-button", 
-                        n_clicks=0,
-                        className="mx-20 bg-teal-400 text-black px-6 py-2 rounded-lg shadow-md hover:bg-teal-500 transition-all"),
-                ], className="flex justify-end"
+                    html.Div(
+                        className="text-left",
+                        children=[
+                            html.H1(
+                                children="Projeção de Geração de Eletricidade e Lixo no Brasil",
+                                className="text-2xl font-bold mb-4 text-white uppercase",
+                            ),
+
+                            html.H2(
+                                children="enerlyze",
+                                className="text-l font-bold mb-4 text-white uppercase items-start",
+                            ),
+                        ]    
+                    ),
+
+                    html.Div(
+                        className = "my-auto",
+                        children=[
+                            html.A(
+                                "Baixar Projeções", 
+                                id="download-link", 
+                                download="projecao_energia.csv", 
+                                href="/static/projecao_energia.csv", 
+                                target="_blank", 
+                                className="download-button uppercase font-bold mr-4 bg-blue-900 text-white px-6 py-2 rounded-lg shadow-md hover:bg-blue-700 transition-all"
+                            ),
+                            
+                            html.Button(
+                                "Voltar", 
+                                id="back-button", 
+                                n_clicks=0,
+                                className="bg-blue-900 uppercase font-bold text-white px-6 py-2 rounded-lg shadow-md hover:bg-blue-700 transition-all"
+                            ),
+                        ]
+                    ),
+                ]
             ),
+            
             
 
             html.Div(
+                className="flex",
                 children=[
-                    dcc.Graph(
-                        id="generation-by-type-graph",
-                        className="flex-1 min-w-[300px]" 
-                        ),
-                    dcc.Graph(
-                        id="waste-generation-graph",
-                        className="flex-1 min-w-[300px]"
+                    html.Div(
+                        className="flex-1 bg-blue-900 p-2 rounded-lg min-w-[300px] my-8 lg:my-16 mr-4",
+                        children=dcc.Graph(id="generation-by-type-graph"),
+                    ),
+                    html.Div(
+                        className="flex-1 bg-blue-900 p-2 rounded-lg min-w-[300px] my-8 lg:my-16",
+                        children=dcc.Graph(id="waste-generation-graph"),
                     ),
                 ],
-                className="flex"
             ),
-            
-            
         ],
         style={'display': 'none'}  # Inicialmente oculta a tela de conteúdo
     )
@@ -189,6 +209,9 @@ def update_generation_by_type_graph():
         'data': traces,
         'layout': go.Layout(
             title="Geração de Eletricidade por Tipo no Brasil",
+            plot_bgcolor='rgba(0, 0, 0, 0)',  # Transparent plot area
+            paper_bgcolor='rgba(0, 0, 0, 0)',
+            font=dict(color="white"),  # Set all text color to white
             xaxis={'title': 'Ano'},
             yaxis={'title': 'Geração (TWh)'},
             legend=dict(
@@ -196,7 +219,7 @@ def update_generation_by_type_graph():
                 x=0.5,  # Centraliza no eixo X
                 xanchor="center",  # Alinha pelo centro
                 y=-0.5,  # Posiciona abaixo do gráfico
-                bgcolor="rgba(255, 255, 255, 0.5)"  # Fundo semitransparente
+                bgcolor="rgba(255, 255, 255, 0)"  # Fundo semitransparente
             ),
             showlegend=True
         )
@@ -251,6 +274,9 @@ def update_waste_graph():
         ],
         'layout': go.Layout(
             title="Geração de Lixo por Tipo de Energia",
+            plot_bgcolor='rgba(0, 0, 0, 0)',  # Transparent plot area
+            paper_bgcolor='rgba(0, 0, 0, 0)',
+            font=dict(color="white"),  # Set all text color to white
             xaxis={'title': 'Ano'},
             yaxis={'title': 'Geração de Lixo (Kg)'},
             legend=dict(
@@ -258,7 +284,7 @@ def update_waste_graph():
                 x=0.5,  # Centraliza no eixo X
                 xanchor="center",  # Alinha pelo centro
                 y=-0.5,  # Posiciona abaixo do gráfico
-                bgcolor="rgba(255, 255, 255, 0.5)"  # Fundo semitransparente
+                bgcolor="rgba(255, 255, 255, 0)"  # Fundo semitransparente
             ),
             showlegend=True
         )
