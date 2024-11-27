@@ -9,9 +9,12 @@ import numpy as np
 import os
 from flask import send_file  # Importando a função send_file do Flask
 
-# Inicializar o aplicativo Dash
-app = dash.Dash(__name__)
-server = app.server  # Referência ao servidor Flask
+external_script = [{"src": "https://cdn.tailwindcss.com"}]
+app = dash.Dash(
+    __name__,
+    external_scripts=external_script,
+)
+app.scripts.config.serve_locally = True
 
 # Função para obter os dados da API
 def get_data_from_api():
@@ -93,13 +96,44 @@ app.layout = html.Div([
     html.Div(
         id="content-screen",
         children=[
-            html.H1("Projeção de Geração de Eletricidade e Lixo no Brasil"),
-            dcc.Graph(id="generation-by-type-graph"),
-            dcc.Graph(id="waste-generation-graph"),
-            html.Div([
-                html.A("Baixar Projeções", id="download-link", download="projecao_energia.csv", href="/static/projecao_energia.csv", target="_blank", className="download-button")
-            ]),
-            html.Button("Voltar", id="back-button", n_clicks=0)
+            html.H1(
+                children="Projeção de Geração de Eletricidade e Lixo no Brasil",
+                className="text-xl font-bold mb-4 text-center",
+                ),
+``
+            html.Div(
+                children=[
+                    html.A(
+                        "Baixar Projeções", 
+                        id="download-link", 
+                        download="projecao_energia.csv", 
+                        href="/static/projecao_energia.csv", 
+                        target="_blank", 
+                        className="download-button bg-teal-400 text-black px-6 py-2 rounded-lg shadow-md hover:bg-teal-500 transition-all"),
+                    html.Button(
+                        "Voltar", 
+                        id="back-button", 
+                        n_clicks=0,
+                        className="mx-20 bg-teal-400 text-black px-6 py-2 rounded-lg shadow-md hover:bg-teal-500 transition-all"),
+                ], className="flex justify-end"
+            ),
+            
+
+            html.Div(
+                children=[
+                    dcc.Graph(
+                        id="generation-by-type-graph",
+                        className="flex-1 min-w-[300px]" 
+                        ),
+                    dcc.Graph(
+                        id="waste-generation-graph",
+                        className="flex-1 min-w-[300px]"
+                    ),
+                ],
+                className="flex"
+            ),
+            
+            
         ],
         style={'display': 'none'}  # Inicialmente oculta a tela de conteúdo
     )
@@ -157,6 +191,13 @@ def update_generation_by_type_graph():
             title="Geração de Eletricidade por Tipo no Brasil",
             xaxis={'title': 'Ano'},
             yaxis={'title': 'Geração (TWh)'},
+            legend=dict(
+                orientation="h",  # Exibe a legenda horizontalmente
+                x=0.5,  # Centraliza no eixo X
+                xanchor="center",  # Alinha pelo centro
+                y=-0.5,  # Posiciona abaixo do gráfico
+                bgcolor="rgba(255, 255, 255, 0.5)"  # Fundo semitransparente
+            ),
             showlegend=True
         )
     }
@@ -212,6 +253,13 @@ def update_waste_graph():
             title="Geração de Lixo por Tipo de Energia",
             xaxis={'title': 'Ano'},
             yaxis={'title': 'Geração de Lixo (Kg)'},
+            legend=dict(
+                orientation="h",  # Exibe a legenda horizontalmente
+                x=0.5,  # Centraliza no eixo X
+                xanchor="center",  # Alinha pelo centro
+                y=-0.5,  # Posiciona abaixo do gráfico
+                bgcolor="rgba(255, 255, 255, 0.5)"  # Fundo semitransparente
+            ),
             showlegend=True
         )
     }
