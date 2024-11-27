@@ -86,14 +86,28 @@ app.layout = html.Div(
     className="bg-indigo-950",
     children=[
     html.Div(
+        className="h-screen w-full flex justify-center items-center",
         id="initial-screen",
         children=[
-            html.H1("Bem-vindo ao enerlyze, clique em iniciar para começar"),
-            html.Button("Iniciar", id="start-button", n_clicks=0)
-        ],
-        style={'display': 'block'}  # Inicialmente exibe a tela de boas-vindas
+            html.Div(
+                className="p-4 md:p-8 lg:p-16 xl:p-20",
+                children=[
+                    html.H1(
+                        "Bem-vindo ao enerlyze, clique em iniciar para começar",
+                        className="text-2xl font-bold mb-4 text-white uppercase",
+                    ),
+            
+                    html.Button(
+                        "Iniciar", 
+                        id="start-button", 
+                        n_clicks=0,
+                        className="bg-blue-900 uppercase font-bold text-white px-6 py-2 rounded-lg shadow-md hover:bg-blue-700 transition-all"
+                    )
+                ]
+            )
+        ],style={'display': 'block'}
     ),
-    
+
     html.Div(
         id="content-screen",
         className="p-4 md:p-8 lg:p-16 xl:p-20",
@@ -111,7 +125,7 @@ app.layout = html.Div(
 
                             html.H2(
                                 children="enerlyze",
-                                className="text-l font-bold mb-4 text-white uppercase items-start",
+                                className="text-l font-bold text-white uppercase items-start",
                             ),
                         ]    
                     ),
