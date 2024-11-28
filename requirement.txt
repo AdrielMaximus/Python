@@ -9,3 +9,4 @@ flask==3.0.0            # Backend (instalado com dash, mas pode precisar ser exp
 # Adicione outras dependências conforme necessário
 pandas==2.1.2           # Manipulação de dados (caso necessário)
 numpy==1.26.0           # Operações matemáticas (caso necessário)
+scikit-learn==1.3.2
