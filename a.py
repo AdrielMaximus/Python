@@ -57,11 +57,11 @@ app.layout = html.Div(
             id="initial-screen",
             children=[
                 html.Div(
-                    className="p-4 md:p-8 lg:p-16 xl:p-20 flex flex-col items-center",
+                    className="p-4 md:p-8 lg:p-16 xl:p-20",
                     children=[
                         html.H1(
                             "Bem-vindo ao Enerlyze, clique em iniciar para começar",
-                            className="text-2xl font-bold mb-4 text-cyan-100 uppercase text-center",
+                            className="text-2xl font-bold mb-4 text-cyan-100 uppercase",
                         ),
                         html.Button(
                             "Iniciar", 
@@ -102,7 +102,7 @@ app.layout = html.Div(
                                     download="projecao_energia.csv", 
                                     href="/static/projecao_energia.csv", 
                                     target="_blank", 
-                                    className="bg-blue-800 text-cyan-100 px-6 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-all mr-4"
+                                    className="bg-blue-800 text-cyan-100 px-6 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-all"
                                 ),
                                 html.Button(
                                     "Voltar", 
@@ -230,7 +230,7 @@ def update_waste_graph():
                 x=df_grouped['date'],
                 y=df_grouped['hydro_waste'],
                 name='Hidrelétrica',
-                marker_color='gray',  # Mudança para cinza
+                marker_color='blue',
                 hoverinfo='x+y',
                 width=0.8,
             ),
